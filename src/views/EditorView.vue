@@ -1,32 +1,53 @@
 <template>
-  <div class="editor">
-    <canvas
-      id="editor"
-      :width="editorWidth"
-      :height="editorHeight"
-      @mousedown="startDrawMode"
-      @mouseup="endDrawMode"
-      @mousemove="constinuousDraw"
-      @click.left="drawPixel"
-    ></canvas>
+  <div class="editor-view vh-100 vw-100 m-0 p-0 d-flex bg-white">
+    <side-bar
+      id="sidebar"
+      class="h-100"
+      @set-tool="changeTool"
+      :toggles="{ showGrid: showGrid }"
+    />
+    <div class="editor-container m-0 p-0 w-100">
+      <div class="editor-area">
+        <canvas
+          id="editor"
+          :width="editorWidth"
+          :height="editorHeight"
+          @mousedown="startDrawing"
+          @mouseup="endDrawing"
+          @mousemove="drawPixel"
+          @click.left="
+            startDrawing();
+            drawPixel();
+            endDrawing();
+          "
+          @mouseleave="endDrawing"
+          class="border"
+        ></canvas>
+      </div>
+      <color-picker @set-color="setColor" />
+    </div>
   </div>
-  <color-picker />
 </template>
 
 <script>
 // @ is an alias to /src
 import ColorPicker from "../components/ColorPicker.vue";
+import SideBar from "../components/SideBar.vue";
 
 export default {
   name: "EditorView",
-  components: { ColorPicker },
+  components: { ColorPicker, SideBar },
   data: function () {
     return {
       editorWidth: 600,
       editorHeight: 600,
-      blockSize: 50,
+      blockSize: 30,
       ctx: null,
       isDrawing: false,
+      currentColor: "rgb(0, 0, 0)",
+      lastColor: "rgb(0, 0, 0)",
+      showGrid: true,
+      currentTool: "pencil",
     };
   },
   computed: {
@@ -42,12 +63,13 @@ export default {
     var canvas = document.getElementById("editor");
     this.ctx = canvas.getContext("2d");
 
-    this.showGrid();
+    if (this.showGrid) {
+      this.drawGrid();
+    }
   },
   methods: {
-    showGrid() {
-      console.log("showing grid.....");
-      this.ctx.strokeStyle = "rbg(0,0,0)";
+    drawGrid() {
+      this.ctx.strokeStyle = "lightgray";
       this.ctx.beginPath();
       for (let i = this.blockSize; i < this.editorWidth; i += this.blockSize) {
         this.ctx.moveTo(i, 0);
@@ -66,26 +88,69 @@ export default {
       var startY = clickY - (clickY % this.blockSize);
       return { x: startX, y: startY };
     },
-    constinuousDraw() {
+    drawPixel() {
       if (!this.isDrawing) {
         return;
       }
-      var coords = this.getCoords();
-      this.ctx.fillStyle = "rgb(12,24,88)";
-      this.ctx.fillRect(coords.x, coords.y, this.blockSize, this.blockSize);
+      this.drawRoutine(this.getCoords());
     },
-
-    drawPixel() {
-      var coords = this.getCoords();
-      this.ctx.fillStyle = "rgb(12,24,88)";
-      this.ctx.fillRect(coords.x, coords.y, this.blockSize, this.blockSize);
-      this.endDrawMode();
-    },
-    startDrawMode() {
+    startDrawing() {
       this.isDrawing = true;
     },
-    endDrawMode() {
+    endDrawing() {
       this.isDrawing = false;
+      if (this.showGrid) {
+        this.drawGrid();
+      }
+    },
+    drawRoutine(coords) {
+      this.ctx.fillStyle = this.currentColor;
+      this.ctx.fillRect(coords.x, coords.y, this.blockSize, this.blockSize);
+    },
+    setColor(color) {
+      this.lastColor = this.currentColor;
+      if (color) {
+        this.currentColor = color;
+      } else if (event.target.tagName == "LI") {
+        this.currentColor = "" + event.target.style.backgroundColor;
+      }
+    },
+    changeTool() {
+      const tool = event.target.className.baseVal;
+      if (!tool) {
+        return;
+      }
+      switch (tool) {
+        case "eraser":
+          this.setEraser();
+          break;
+        case "pencil":
+          this.setPencil();
+          break;
+        case "trash":
+          this.clearEditor();
+          break;
+      }
+    },
+    clearEditor() {
+      this.ctx.clearRect(0, 0, this.editorWidth, this.editorHeight);
+      if (this.showGrid) {
+        this.drawGrid();
+      }
+    },
+    setEraser() {
+      if (this.currentTool == "eraser") {
+        return;
+      }
+      this.currentTool = "eraser";
+      this.setColor("white");
+    },
+    setPencil() {
+      if (this.currentTool == "pencil") {
+        return;
+      }
+      this.currentTool = "pencil";
+      this.setColor(this.lastColor);
     },
   },
 };
@@ -94,8 +159,13 @@ export default {
 /* #editor {
   border: 5px solid black;
 } */
-.editor {
-  display: inline-block;
-  border: 2px solid black;
+/* .editor-area {
+} */
+.editor-container {
+  display: inline-grid;
+  grid-auto-columns: 1fr;
+  grid-auto-rows: auto 150px;
 }
+/* .editor-container {
+} */
 </style>

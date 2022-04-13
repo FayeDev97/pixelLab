@@ -1,4 +1,5 @@
 # pixel-doodles
+A small pixel editor made with Vue 3 & Bootstrap 5
 
 ## Project setup
 ```
